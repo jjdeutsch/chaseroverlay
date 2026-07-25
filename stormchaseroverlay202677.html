@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>STOP SPOT CHASE Overlay</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css">
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,Helvetica,sans-serif;
+}
+
+
+html,body{
+
+width:100%;
+height:100%;
+background:transparent;
+overflow:hidden;
+color:white;
+
+}
+
+
+/********************
+ TOP BAR
+********************/
+
+#topBar{
+
+position:absolute;
+top:0;
+left:0;
+
+width:100%;
+height:48px;
+
+background:rgba(0,0,0,.75);
+
+display:flex;
+align-items:center;
+
+padding-left:20px;
+
+border-bottom:2px solid #00aaff;
+
+z-index:1000;
+
+font-size:20px;
+font-weight:bold;
+
+}
+
+
+.liveDot{
+
+width:7px;
+height:7px;
+
+border-radius:0%;
+
+background:red;
+
+margin-right:5px;
+
+animation:pulse 2s infinite;
+
+box-shadow:0 0 0px red;
+
+}
+
+
+@keyframes pulse{
+
+50%{
+
+opacity:.3;
+transform:scale(.75);
+
+}
+
+}
+
+
+
+/********************
+ TITLE
+********************/
+
+#brand{
+
+color:#00ccff;
+
+margin-right:25px;
+
+}
+
+
+#headerLocation{
+
+color:white;
+
+}
+
+
+
+/********************
+ MINI MAP
+********************/
+
+
+#map{
+
+position:absolute;
+
+right:20px;
+
+bottom:90px;
+
+width:340px;
+
+height:180px;
+
+
+border-radius:12px;
+
+overflow:hidden;
+
+border:2px solid #d411f2;
+
+background:#111;
+
+z-index:500;
+
+box-shadow:
+0 0 15px #008cff;
+
+}
+
+
+
+/********************
+ MAP LABEL
+********************/
+
+
+#mapLabel{
+
+position:absolute;
+
+right:20px;
+
+top:55px;
+
+background:rgba(0,0,0,.8);
+
+padding:6px 14px;
+
+border-radius:0 0 10px 10px;
+
+font-weight:bold;
+
+font-size:18px;
+
+z-index:700;
+
+border:2px solid #0bf4e4;
+
+}
+
+
+
+/********************
+ ROAD NAME
+********************/
+
+
+#roadName{
+
+position:absolute;
+
+right:20px;
+
+bottom:289px;
+
+width:340px;
+
+text-align:center;
+
+
+background:rgba(0,0,0,.75);
+
+padding:8px;
+
+font-size:17px;
+
+font-weight:bold;
+
+border-radius:8px;
+
+border:1px solid #00aaff;
+
+z-index:700;
+
+}
+
+
+
+/********************
+ COMPASS
+********************/
+
+
+#mapCompass{
+
+position:absolute;
+
+right:35px;
+
+top:100px;
+
+width:42px;
+
+height:40px;
+
+
+border-radius:50%;
+
+background:rgba(0,0,0,.75);
+
+border:2px solid #00aaff;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+font-weight:bold;
+
+font-size:20px;
+
+z-index:900;
+
+}
+
+
+
+/********************
+ BOTTOM BAR
+********************/
+
+
+#bottomBar{
+
+position:absolute;
+
+bottom:0;
+
+left:0;
+
+width:100%;
+
+height:70px;
+
+
+background:rgba(0,0,0,.75);
+
+border-top:2px solid #00aaff;
+
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+z-index:1000;
+
+}
+
+
+#bottomInfo{
+
+display:flex;
+
+gap:35px;
+
+font-size:24px;
+
+font-weight:bold;
+
+}
+
+
+
+</style>
+
+</head>
+<body>
+
+
+<!-- TOP BAR -->
+<div id="topBar">
+
+<div class="liveDot"></div>
+
+<div id="brand">
+STOP SPOT CHASE
+</div>
+
+<div id="headerLocation">
+Locating...
+</div>
+
+</div>
+
+
+
+<!-- CURRENT ROAD -->
+
+<div id="roadName">
+🛣 Searching Road...
+</div>
+
+
+
+<!-- MAP LABEL -->
+
+<div id="mapLabel">
+🛰 LIVE GPS MAP
+</div>
+
+
+
+<!-- MAP COMPASS -->
+
+<div id="mapCompass">
+N
+</div>
+
+
+
+<!-- MINI MAP -->
+
+<div id="map"></div>
+
+
+
+<!-- BOTTOM INFORMATION BAR -->
+
+<div id="bottomBar">
+
+<div id="bottomInfo">
+
+
+<span id="cityState">
+📍 Locating...
+</span>
+
+
+<span id="heading">
+🧭 --
+</span>
+
+
+<span id="clock">
+🕒 --
+</span>
+
+
+<span id="temp">
+🌡 --
+</span>
+
+
+<span id="speed">
+🚗 0 MPH
+</span>
+
+
+<span id="gps">
+📡 GPS...
+</span>
+
+
+
+</div>
+
+</div>
+<script>
+
+/**************************************************
+ STOP SPOT CHASE
+ LIVE GPS ENGINE
+**************************************************/
+
+let map;
+let gpsDot;
+let accuracyCircle;
+
+let lastLat;
+let lastLon;
+
+
+const cityState =
+document.getElementById("cityState");
+
+const headerLocation =
+document.getElementById("headerLocation");
+
+const roadName =
+document.getElementById("roadName");
+
+const heading =
+document.getElementById("heading");
+
+const speed =
+document.getElementById("speed");
+
+const gps =
+document.getElementById("gps");
+
+const clock =
+document.getElementById("clock");
+
+const temp =
+document.getElementById("temp");
+
+
+
+/**************************************************
+ CLOCK
+**************************************************/
+
+function updateClock(){
+
+let now=new Date();
+
+clock.innerHTML =
+"🕒 "+
+now.toLocaleTimeString([],{
+hour:"numeric",
+minute:"2-digit"
+});
+
+}
+
+setInterval(updateClock,1000);
+
+updateClock();
+
+
+
+
+/**************************************************
+ COMPASS
+**************************************************/
+
+function compassDirection(deg){
+
+if(deg === null ||
+deg === undefined){
+
+return "--";
+
+}
+
+
+let directions=[
+"N",
+"NE",
+"E",
+"SE",
+"S",
+"SW",
+"W",
+"NW"
+];
+
+
+return directions[
+Math.round(deg/45)%8
+];
+
+}
+
+
+
+
+/**************************************************
+ CREATE MAP
+**************************************************/
+
+function createMap(lat,lon){
+
+
+map=L.map("map",{
+
+zoomControl:false,
+
+attributionControl:false,
+
+dragging:false,
+
+scrollWheelZoom:false
+
+});
+
+
+map.setView(
+[lat,lon],
+15
+);
+
+
+
+L.tileLayer(
+
+"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+{
+
+maxZoom:19
+
+}
+
+).addTo(map);
+
+
+
+gpsDot=L.circleMarker(
+
+[lat,lon],
+
+{
+
+radius:8,
+
+color:"#008cff",
+
+fillColor:"#008cff",
+
+fillOpacity:1,
+
+weight:3
+
+}
+
+).addTo(map);
+
+
+
+accuracyCircle=L.circle(
+
+[lat,lon],
+
+{
+
+radius:20,
+
+color:"#008cff",
+
+fillColor:"#008cff",
+
+fillOpacity:.15
+
+}
+
+).addTo(map);
+
+
+
+}
+
+
+
+
+/**************************************************
+ UPDATE MAP POSITION
+**************************************************/
+
+function updateMap(lat,lon,accuracy){
+
+
+if(!map){
+
+createMap(lat,lon);
+
+return;
+
+}
+
+
+
+gpsDot.setLatLng(
+[lat,lon]
+);
+
+
+
+accuracyCircle.setLatLng(
+[lat,lon]
+);
+
+
+
+accuracyCircle.setRadius(
+accuracy
+);
+
+
+
+map.panTo(
+[lat,lon],
+{
+
+animate:true,
+
+duration:.5
+
+}
+
+);
+
+
+}
+
+
+
+
+/**************************************************
+ LOCATION LOOKUP
+**************************************************/
+
+async function updateLocation(lat,lon){
+
+
+try{
+
+
+let response =
+await fetch(
+
+`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+
+);
+
+
+let data =
+await response.json();
+
+
+let a=data.address;
+
+
+
+let city =
+a.city ||
+a.town ||
+a.village ||
+"Unknown";
+
+
+
+let county =
+(a.county || "")
+.replace(" County","");
+
+
+
+let state =
+a.state || "";
+
+
+
+cityState.innerHTML =
+`📍 ${city}, ${state}`;
+
+
+
+headerLocation.innerHTML =
+`${city} • ${county} County • ${state}`;
+
+
+
+let road =
+a.road ||
+
+a.street ||
+
+a.interstate ||
+
+a.highway ||
+"Unknown Road";
+
+
+
+roadName.innerHTML =
+"🛣 "+road;
+
+
+}
+
+catch{
+
+
+cityState.innerHTML =
+"📍 Location Error";
+
+
+}
+
+}
+
+
+
+/**************************************************
+ WEATHER
+**************************************************/
+
+async function updateWeather(lat,lon){
+
+
+try{
+
+
+let p =
+await fetch(
+
+`https://api.weather.gov/points/${lat},${lon}`
+
+);
+
+
+let point =
+await p.json();
+
+
+let f =
+await fetch(
+
+point.properties.forecast
+
+);
+
+
+let forecast =
+await f.json();
+
+
+
+let current =
+forecast.properties.periods[0];
+
+
+
+temp.innerHTML =
+`🌡 ${current.temperature}°${current.temperatureUnit}`;
+
+
+}
+
+catch{
+
+
+temp.innerHTML =
+"🌡 --";
+
+
+}
+
+
+}
+
+
+
+/**************************************************
+ GPS UPDATE
+**************************************************/
+
+function gpsSuccess(position){
+
+
+let lat =
+position.coords.latitude;
+
+
+let lon =
+position.coords.longitude;
+
+
+
+let accuracy =
+position.coords.accuracy;
+
+
+
+gps.innerHTML =
+"📡 "+Math.round(accuracy)+" ft";
+
+
+
+updateMap(
+lat,
+lon,
+accuracy
+);
+
+
+
+updateLocation(
+lat,
+lon
+);
+
+
+
+updateWeather(
+lat,
+lon
+);
+
+
+
+
+if(position.coords.speed !== null){
+
+
+let mph =
+position.coords.speed * 2.23694;
+
+
+
+speed.innerHTML =
+"🚗 "+
+Math.round(mph)
++
+" MPH";
+
+
+}
+
+
+
+
+if(position.coords.heading !== null){
+
+
+let dir =
+compassDirection(
+position.coords.heading
+);
+
+
+heading.innerHTML =
+"🧭 "+dir;
+
+
+document.getElementById(
+"mapCompass"
+).innerHTML =
+dir;
+
+
+}
+
+
+
+}
+
+
+
+
+
+/**************************************************
+ GPS ERROR
+**************************************************/
+
+function gpsError(){
+
+
+gps.innerHTML =
+"📡 GPS ERROR";
+
+
+}
+
+
+
+
+/**************************************************
+ START TRACKING
+**************************************************/
+
+navigator.geolocation.watchPosition(
+
+gpsSuccess,
+
+gpsError,
+
+{
+
+enableHighAccuracy:true,
+
+maximumAge:1000,
+
+timeout:15000
+
+}
+
+
+);
+
+
+</script>
+
+
+
+
+</script>
+
+
+</body>
+
+</html>
